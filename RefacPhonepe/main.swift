@@ -42,21 +42,32 @@ enum TypeSearchRegex {
             return ""
         }
     }
+    func getChars() -> (Character, Character)? {
+        switch self {
+        case .stringFormatLocalized:
+            return (" ", ")")
+        case .stringFormatPPLocalized:
+            return (" ", ")")
+        default:
+            return nil
+        }
+    }
+
 }
 
 var typeOfLocalized: TypeSearchRegex = .stringFormatPPLocalized
 
 
+private func getStringBetween(firstChar: Character, endChar: Character, inString: String) -> String {
 
-private func cleanBeforeGetParams(inString: String) -> String {
-
-    guard let index = inString.firstIndex(of: ":"), let lastIndex = inString.lastIndex(of: ")") else {
+    guard let index = inString.firstIndex(of: firstChar), let lastIndex = inString.lastIndex(of: endChar) else {
         return inString
     }
-    let firstIndex = inString.index(index, offsetBy: 2)
+    let firstIndex = inString.index(index, offsetBy: 1)
 
     return String(inString[firstIndex..<lastIndex])
 }
+
 
 private func listOfFiles(_ scanFileType: ScanFilesType) throws -> [String] {
     let args = ProcessInfo.processInfo.arguments
@@ -104,6 +115,17 @@ private func matches(for regex: String, in text: String) -> [String] {
     }
 }
 
+private func stripPPLocalizedText(text: String) -> String {
+    var newString = text
+    if text.hasPrefix("PPLocalizedString(\"") {
+        newString.removeFirst(19)
+    }
+    if text.hasSuffix("\")") {
+        newString.removeLast(2)
+    }
+    return newString
+}
+
 private func stripDotLocalizedText(text: String) -> String {
     var newString = text
     if text.hasSuffix(".localized") {
@@ -116,12 +138,13 @@ private func stripDotLocalizedText(text: String) -> String {
 
 private func stripQuoteFromBeginingEnd(text: String) -> String {
     var newString = text
-    if newString.first == "\"" && newString.last == "\"" {
-        newString.removeLast()
+    if newString.first == "\"" {
         newString.removeFirst()
-    } else {
-        print("Error quote strip")
     }
+    if newString.last == "\"" {
+        newString.removeLast()
+    }
+
     return newString
 }
 
@@ -154,13 +177,25 @@ private func removeDotAndConvertCamelCase(text: String) -> String {
     return newString
 }
 
+private func strip(text: String) -> String {
+    switch typeOfLocalized {
+    case .stringFormatLocalized:
+        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: text)))
+    case .stringFormatPPLocalized:
+        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+    default:
+        print("No stripping")
+        return ""
+    }
+}
+
 //L10n.goldStateViewControllerPriceDetailText(d, <#T##p2: String##String#>, <#T##p3: String##String#>)
 private func addParams(list: [String]) -> String {
     if list.isEmpty == true {
         print("error add params")
         return ""
     }
-    let firstString = removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: list[0])))
+    let firstString = strip(text: list[0])
     var newString: String = ""
     newString.append(firstString)
     newString.append("(")
@@ -180,8 +215,11 @@ private func addParams(list: [String]) -> String {
 private func getParams(inString: String) -> [String] {
     var braceCount = 0
     var newString = ""
+    var cleanString = inString
 
-    let cleanString = cleanBeforeGetParams(inString: inString)
+    if let chars = typeOfLocalized.getChars() {
+        cleanString = getStringBetween(firstChar: chars.0, endChar: chars.1, inString: inString)
+    }
 
     cleanString.forEach { (char) in
         var newChar = char
@@ -210,6 +248,7 @@ private func getParams(inString: String) -> [String] {
         splitStringListCommaFinal.append(finalString)
     }
 
+    //cleaning of strings removing " and spaces
     for i in 0..<splitStringListCommaFinal.count {
         while splitStringListCommaFinal[i].first == " " || splitStringListCommaFinal[i].last == " " {
             if splitStringListCommaFinal[i].first == " " {
@@ -219,6 +258,7 @@ private func getParams(inString: String) -> [String] {
                 splitStringListCommaFinal[i].removeLast()
             }
         }
+//        splitStringListCommaFinal[i] = stripQuoteFromBeginingEnd(text: splitStringListCommaFinal[i])
     }
 
     return splitStringListCommaFinal
@@ -239,7 +279,8 @@ private func targetText(_ sourceText: String) -> String {
         return "L10n." + addParams(list: params)
 
     case .stringFormatPPLocalized:
-        return ""
+        let params = getParams(inString: sourceText)
+        return "L10n." + addParams(list: params)
 
     case .stringFormatLongLocalized:
         return ""
