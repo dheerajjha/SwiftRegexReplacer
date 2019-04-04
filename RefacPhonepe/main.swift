@@ -9,7 +9,6 @@
 import AppKit
 import Foundation
 
-
 enum ScanFilesType {
     case swift
     case xib
@@ -26,20 +25,37 @@ enum ScanFilesType {
         }
     }
 }
-enum TypeSearch {
-    case stringFormat
+enum TypeSearchRegex {
+    case stringFormatLocalized
+    case stringFormatPPLocalized
     case localized
-    case stringformatwithlocalized
+    case stringFormatLongLocalized
     func getRegex() -> String {
         switch self {
-        case .stringFormat:
-            return "String\\(format: .*localized.*\\)"
+        case .stringFormatLocalized:
+            return "String\\(format: .*ocalized.*\\)"
+        case .stringFormatPPLocalized:
+            return "String\\(format: PPLocalizedString\\(.*\\)\\)"
         case .localized:
             return "\"(.*?)\".localized"
-        case .stringformatwithlocalized:
+        case .stringFormatLongLocalized:
             return ""
         }
     }
+}
+
+var typeOfLocalized: TypeSearchRegex = .stringFormatPPLocalized
+
+
+
+private func cleanBeforeGetParams(inString: String) -> String {
+
+    guard let index = inString.firstIndex(of: ":"), let lastIndex = inString.lastIndex(of: ")") else {
+        return inString
+    }
+    let firstIndex = inString.index(index, offsetBy: 2)
+
+    return String(inString[firstIndex..<lastIndex])
 }
 
 private func listOfFiles(_ scanFileType: ScanFilesType) throws -> [String] {
@@ -73,9 +89,6 @@ private func listOfFiles(_ scanFileType: ScanFilesType) throws -> [String] {
     }
     return filesList
 }
-
-//String(format: "mandate.list.execution.summary.title.succeess".localized, formattedAmount, date)
-//String(format: self.serviceURL(), model.userId)
 
 private func matches(for regex: String, in text: String) -> [String] {
     do {
@@ -141,8 +154,96 @@ private func removeDotAndConvertCamelCase(text: String) -> String {
     return newString
 }
 
+//L10n.goldStateViewControllerPriceDetailText(d, <#T##p2: String##String#>, <#T##p3: String##String#>)
+private func addParams(list: [String]) -> String {
+    if list.isEmpty == true {
+        print("error add params")
+        return ""
+    }
+    let firstString = removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: list[0])))
+    var newString: String = ""
+    newString.append(firstString)
+    newString.append("(")
+    for i in 1..<list.count {
+        if i + 1 == list.count {
+            newString.append(list[i])
+        } else {
+            newString.append(list[i])
+            newString.append(", ")
+        }
+    }
+    newString.append(")")
+
+    return newString
+}
+
+private func getParams(inString: String) -> [String] {
+    var braceCount = 0
+    var newString = ""
+
+    let cleanString = cleanBeforeGetParams(inString: inString)
+
+    cleanString.forEach { (char) in
+        var newChar = char
+        if char == "(" {
+            braceCount += 1
+        }
+        if char == ")" {
+            braceCount -= 1
+        }
+        if braceCount > 0, char == "," {
+            newChar = "~"
+        }
+        newString.append(newChar)
+    }
+    var splitStringListCommaFinal:[String] = []
+    let splitStringListComma = newString.split(separator: ",")
+    splitStringListComma.forEach { (string) in
+        var finalString = ""
+        string.forEach { (char) in
+            var newChar = char
+            if char == "~" {
+                newChar = ","
+            }
+            finalString.append(newChar)
+        }
+        splitStringListCommaFinal.append(finalString)
+    }
+
+    for i in 0..<splitStringListCommaFinal.count {
+        while splitStringListCommaFinal[i].first == " " || splitStringListCommaFinal[i].last == " " {
+            if splitStringListCommaFinal[i].first == " " {
+                splitStringListCommaFinal[i].removeFirst()
+            }
+            if splitStringListCommaFinal[i].last == " " {
+                splitStringListCommaFinal[i].removeLast()
+            }
+        }
+    }
+
+    return splitStringListCommaFinal
+}
+
+//L10n."mandateListExecutionSummaryTitleSucceess"Localized(formattedAmount, date)
+//String(format: self.serviceURL(), model.userId)
+//L10n.PPLocalizedString("goldStateViewControllerPriceDetailText")(weightDescription, reservedPrice, PPLocalizedString("gold.weight.metrick.gm.text"))
+
+
 private func targetText(_ sourceText: String) -> String {
-    return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: sourceText)))
+    switch typeOfLocalized {
+    case .localized:
+        return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: sourceText)))
+
+    case .stringFormatLocalized:
+        let params = getParams(inString: sourceText)
+        return "L10n." + addParams(list: params)
+
+    case .stringFormatPPLocalized:
+        return ""
+
+    case .stringFormatLongLocalized:
+        return ""
+    }
 }
 
 
@@ -151,7 +252,7 @@ private func replaceLocalizedString(filePath: String) throws {
     var content = try String(contentsOfFile: filePath)
     let fileURL = URL(fileURLWithPath: filePath)
 
-    matches(for: TypeSearch.stringFormat.getRegex(), in: content).forEach { (string) in
+    matches(for: typeOfLocalized.getRegex(), in: content).forEach { (string) in
         result.append(string)
     }
 
