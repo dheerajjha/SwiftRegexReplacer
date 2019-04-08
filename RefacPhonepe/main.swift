@@ -28,6 +28,8 @@ enum ScanFilesType {
 enum TypeSearchRegex {
     case stringFormatLocalized
     case stringFormatPPLocalized
+    case localizedStringWithFormat
+    case ppLocalizedString
     case localized
     case stringFormatLongLocalized
     func getRegex() -> String {
@@ -35,7 +37,12 @@ enum TypeSearchRegex {
         case .stringFormatLocalized:
             return "String\\(format: .*ocalized.*\\)"
         case .stringFormatPPLocalized:
-            return "String\\(format: PPLocalizedString\\(.*\\)\\)"
+//            return "String\\(format: PPLocalizedString\\(.*\\)\\)"
+            return "String\\(format: PPLocalizedString\\(.*\\)"
+        case .localizedStringWithFormat:
+            return "String\\.localizedStringWithFormat\\(PPLoca.*\\)"
+        case .ppLocalizedString:
+            return "PPLocalizedString\\(\"(.*?)\"\\)"
         case .localized:
             return "\"(.*?)\".localized"
         case .stringFormatLongLocalized:
@@ -48,6 +55,10 @@ enum TypeSearchRegex {
             return (" ", ")")
         case .stringFormatPPLocalized:
             return (" ", ")")
+        case .localizedStringWithFormat:
+            return ("(", ")")
+        case .ppLocalizedString:
+            return ("\"", "\"")
         default:
             return nil
         }
@@ -55,7 +66,7 @@ enum TypeSearchRegex {
 
 }
 
-var typeOfLocalized: TypeSearchRegex = .stringFormatPPLocalized
+var masterKeyTypeReplacement: TypeSearchRegex = .stringFormatPPLocalized
 
 
 private func getStringBetween(firstChar: Character, endChar: Character, inString: String) -> String {
@@ -178,10 +189,14 @@ private func removeDotAndConvertCamelCase(text: String) -> String {
 }
 
 private func strip(text: String) -> String {
-    switch typeOfLocalized {
+    switch masterKeyTypeReplacement {
     case .stringFormatLocalized:
         return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: text)))
     case .stringFormatPPLocalized:
+        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+    case .localizedStringWithFormat:
+        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+    case .ppLocalizedString:
         return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
     default:
         print("No stripping")
@@ -217,7 +232,7 @@ private func getParams(inString: String) -> [String] {
     var newString = ""
     var cleanString = inString
 
-    if let chars = typeOfLocalized.getChars() {
+    if let chars = masterKeyTypeReplacement.getChars() {
         cleanString = getStringBetween(firstChar: chars.0, endChar: chars.1, inString: inString)
     }
 
@@ -266,11 +281,11 @@ private func getParams(inString: String) -> [String] {
 
 //L10n."mandateListExecutionSummaryTitleSucceess"Localized(formattedAmount, date)
 //String(format: self.serviceURL(), model.userId)
-//L10n.PPLocalizedString("goldStateViewControllerPriceDetailText")(weightDescription, reservedPrice, PPLocalizedString("gold.weight.metrick.gm.text"))
+//L10n.L10n.goldStateViewControllerPriceDetailText()(weightDescription, reservedPrice, L10n.goldWeightMetrickGmText())
 
 
 private func targetText(_ sourceText: String) -> String {
-    switch typeOfLocalized {
+    switch masterKeyTypeReplacement {
     case .localized:
         return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: sourceText)))
 
@@ -281,6 +296,13 @@ private func targetText(_ sourceText: String) -> String {
     case .stringFormatPPLocalized:
         let params = getParams(inString: sourceText)
         return "L10n." + addParams(list: params)
+
+    case .localizedStringWithFormat:
+        let params = getParams(inString: sourceText)
+        return "L10n." + addParams(list: params)
+
+    case .ppLocalizedString:
+        return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: sourceText)))
 
     case .stringFormatLongLocalized:
         return ""
@@ -293,7 +315,7 @@ private func replaceLocalizedString(filePath: String) throws {
     var content = try String(contentsOfFile: filePath)
     let fileURL = URL(fileURLWithPath: filePath)
 
-    matches(for: typeOfLocalized.getRegex(), in: content).forEach { (string) in
+    matches(for: masterKeyTypeReplacement.getRegex(), in: content).forEach { (string) in
         result.append(string)
     }
 
