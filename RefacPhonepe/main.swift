@@ -66,7 +66,7 @@ enum TypeSearchRegex {
 
 }
 
-var masterKeyTypeReplacement: TypeSearchRegex = .stringFormatPPLocalized
+var masterKeyTypeReplacement: TypeSearchRegex = .localized
 
 
 private func getStringBetween(firstChar: Character, endChar: Character, inString: String) -> String {
@@ -147,7 +147,7 @@ private func stripDotLocalizedText(text: String) -> String {
     return newString
 }
 
-private func stripQuoteFromBeginingEnd(text: String) -> String {
+private func stripQuotesExtractTextFromEnd(text: String) -> String {
     var newString = text
     if newString.first == "\"" {
         newString.removeFirst()
@@ -185,19 +185,22 @@ private func removeDotAndConvertCamelCase(text: String) -> String {
         }
 
     }
+    let c = String(newString.first!).lowercased()
+    newString.removeFirst()
+    newString = c + newString
     return newString
 }
 
 private func strip(text: String) -> String {
     switch masterKeyTypeReplacement {
     case .stringFormatLocalized:
-        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: text)))
+        return removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripDotLocalizedText(text: text)))
     case .stringFormatPPLocalized:
-        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+        return removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripPPLocalizedText(text: text)))
     case .localizedStringWithFormat:
-        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+        return removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripPPLocalizedText(text: text)))
     case .ppLocalizedString:
-        return removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: text)))
+        return removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripPPLocalizedText(text: text)))
     default:
         print("No stripping")
         return ""
@@ -287,7 +290,7 @@ private func getParams(inString: String) -> [String] {
 private func targetText(_ sourceText: String) -> String {
     switch masterKeyTypeReplacement {
     case .localized:
-        return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripDotLocalizedText(text: sourceText)))
+        return "L10n." + removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripDotLocalizedText(text: sourceText)))
 
     case .stringFormatLocalized:
         let params = getParams(inString: sourceText)
@@ -302,7 +305,7 @@ private func targetText(_ sourceText: String) -> String {
         return "L10n." + addParams(list: params)
 
     case .ppLocalizedString:
-        return "L10n." + removeDotAndConvertCamelCase(text: stripQuoteFromBeginingEnd(text: stripPPLocalizedText(text: sourceText)))
+        return "L10n." + removeDotAndConvertCamelCase(text: stripQuotesExtractTextFromEnd(text: stripPPLocalizedText(text: sourceText)))
 
     case .stringFormatLongLocalized:
         return ""
