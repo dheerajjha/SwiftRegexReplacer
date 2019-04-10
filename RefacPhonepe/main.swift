@@ -44,7 +44,7 @@ enum TypeSearchRegex {
         case .ppLocalizedString:
             return "PPLocalizedString\\(\"(.*?)\"\\)"
         case .localized:
-            return "\"(.*?)\".localized"
+            return "\"[a-zA-Z0-9](.*?)\".localized"
         case .stringFormatLongLocalized:
             return ""
         }
