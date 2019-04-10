@@ -333,6 +333,28 @@ private func replaceLocalizedString(filePath: String) throws {
     }
 }
 
+
+private func removeDuplicateStrings(fileURL: String) throws {
+    var content = try String(contentsOfFile: fileURL)
+    let listFiles = content.split(separator: "\n")
+    var set: Set<String.SubSequence> = []
+    try listFiles.forEach { (string) in
+        let res = set.insert(string)
+        if !res.inserted {
+            print(res.memberAfterInsert)
+            guard let endIndex = content.range(of: res.memberAfterInsert)?.lowerBound else {
+                return
+            }
+
+            content = content.replacingOccurrences(of: "\n" + res.memberAfterInsert, with: "", range: endIndex..<content.endIndex)
+            let fileURL = URL(fileURLWithPath: fileURL)
+
+            try content.write(to: fileURL, atomically: false, encoding: .utf8)
+        }
+    }
+    //    print("previous count = \(listFiles.count)duplicates? = \(set.count)")
+}
+
 let list: [String] = try listOfFiles(.swift)
 
 try list.forEach { (file) in
